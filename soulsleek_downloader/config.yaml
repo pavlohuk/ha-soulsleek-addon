@@ -1,0 +1,26 @@
+name: "Soulsleek Downloader"
+version: "0.1.0"
+slug: "soulsleek_downloader"
+description: "Downloads music from Soulseek using a Spotify playlist link, normalizes it, and saves it to a specified directory."
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+init: false
+map:
+  - ssl
+  - media
+options:
+  spotify_playlist_url: ""
+  output_directory: "/media/"
+  soulseek_user: ""
+  soulseek_pass: ""
+  preferred_format: "mp3"
+schema:
+  spotify_playlist_url: "str"
+  output_directory: "str"
+  soulseek_user: "str"
+  soulseek_pass: "password"
+  preferred_format: "str"
