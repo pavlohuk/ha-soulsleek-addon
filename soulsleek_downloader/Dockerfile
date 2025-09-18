@@ -7,6 +7,8 @@ ENV LANG=C.UTF-8
 # Install system dependencies
 RUN apk add --no-cache \
     python3 \
+    python3-dev \
+    py3-pip \
     ffmpeg \
     curl \
     bash \
@@ -15,7 +17,10 @@ RUN apk add --no-cache \
     libintl \
     libssl3 \
     libstdc++ \
-    zlib
+    zlib \
+    build-base \
+    jpeg-dev \
+    zlib-dev
 
 # Install .NET 8 SDK for slsk-batchdl compilation
 RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --install-dir /usr/share/dotnet \
@@ -43,6 +48,13 @@ RUN ARCH=$(uname -m) && \
     echo "Verifying sldl installation:" && ls -la /usr/local/bin/sldl && \
     echo "Testing sldl:" && (/usr/local/bin/sldl --version || echo "Version check failed") && \
     rm -rf /tmp/slsk-batchdl
+
+# Install beets for metadata and cover art processing
+RUN pip3 install --no-cache-dir beets[fetchart,embedart,chroma,discogs,musicbrainz] && \
+    mkdir -p /root/.config/beets
+
+# Copy beets configuration
+COPY beets_config.yaml /root/.config/beets/config.yaml
 
 # Copy app
 COPY app/ /app/

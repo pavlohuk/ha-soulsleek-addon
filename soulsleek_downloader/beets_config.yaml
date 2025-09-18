@@ -1,0 +1,56 @@
+directory: /music
+library: /tmp/beets_library.db
+
+import:
+    move: no
+    copy: no
+    write: yes
+    resume: yes
+    incremental: yes
+    quiet_fallback: skip
+    timid: no
+    log: /tmp/beets.log
+
+match:
+    strong_rec_thresh: 0.10
+    medium_rec_thresh: 0.25
+    rec_gap_thresh: 0.25
+    max_rec:
+        missing_tracks: medium
+        unmatched_tracks: medium
+
+plugins: 
+    - fetchart
+    - embedart
+    - chroma
+    - discogs
+    - musicbrainz
+
+fetchart:
+    auto: yes
+    minwidth: 300
+    maxwidth: 1000
+    quality: 0
+    max_filesize: 0
+    enforce_ratio: no
+    cautious: no
+    cover_names: cover album art front
+    sources: filesystem coverart itunes amazon albumart wikipedia google fanarttv
+
+embedart:
+    auto: yes
+    ifempty: no
+    maxwidth: 1000
+    quality: 65
+
+chroma:
+    auto: yes
+
+musicbrainz:
+    searchlimit: 20
+    extra_tags: [year, catalognum, country, media, label]
+
+paths:
+    default: $albumartist/$album%aunique{}/$track - $title
+    singleton: Non-Album/$artist - $title
+    comp: Compilations/$album%aunique{}/$track - $title

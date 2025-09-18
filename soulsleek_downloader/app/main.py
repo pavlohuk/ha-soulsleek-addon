@@ -5,6 +5,7 @@ import json
 import shutil
 from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
+import tempfile
 
 def download_music(playlist_url, output_dir, log_file, user, password, pref_format):
     """
@@ -98,6 +99,47 @@ def normalize_single_file(file_path, normalize_script_path, converted_dir):
     except Exception as e:
         return {"status": "failed", "file": file_path, "error": str(e)}
 
+def update_metadata_with_beets(music_directory):
+    """
+    Update metadata and fetch cover art using beets.
+    """
+    print(f"🎨 Updating metadata and fetching cover art...")
+    
+    try:
+        # Import files to beets and update metadata
+        command = ["beet", "import", "-A", "-q", music_directory]
+        
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                                 universal_newlines=True, bufsize=1)
+        
+        import_successful = False
+        for line in process.stdout:
+            line = line.rstrip()
+            if line:
+                if "tagging" in line.lower() or "found" in line.lower():
+                    print(f"   📋 {line}")
+                elif "fetching" in line.lower() or "art" in line.lower():
+                    print(f"   🖼️ {line}")
+                elif "error" in line.lower():
+                    print(f"   ⚠️ {line}")
+                else:
+                    # Show other important messages
+                    if any(keyword in line.lower() for keyword in ["album", "track", "match"]):
+                        print(f"   {line}")
+        
+        process.wait()
+        
+        if process.returncode == 0:
+            print(f"   ✅ Metadata and cover art processing completed")
+            return True
+        else:
+            print(f"   ⚠️ Beets processing completed with warnings (exit code: {process.returncode})")
+            return True  # Continue even with warnings
+            
+    except Exception as e:
+        print(f"   ❌ Beets processing failed: {e}")
+        return False
+
 def process_music(directory):
     """
     Processes music in the given directory by finding all audio files,
@@ -157,6 +199,11 @@ def process_music(directory):
         print(f"Failed to convert {len(failed_conversions)} files:")
         for failed in failed_conversions:
             print(f"  - File: {os.path.basename(failed['file'])}")
+    
+    # Update metadata and fetch cover art with beets (only if conversions were successful)
+    if successful_conversions:
+        print(f"\n🎨 Starting metadata and cover art processing...")
+        update_metadata_with_beets(converted_dir)
     
     # Clean up downloads folder after processing
     try:
