@@ -2,6 +2,7 @@ import argparse
 import os
 import subprocess
 import json
+import shutil
 
 def download_music(playlist_url, output_dir, log_file, user, password, pref_format):
     """
@@ -66,7 +67,7 @@ def process_music(directory):
         return
 
     parent_dir = os.path.abspath(os.path.join(directory, os.pardir))
-    converted_dir = os.path.join(parent_dir, "normalized")
+    converted_dir = parent_dir
     os.makedirs(converted_dir, exist_ok=True)
     
     print(f"Found {len(audio_files)} audio files. Converted files will be saved to: {converted_dir}")
@@ -98,6 +99,14 @@ def process_music(directory):
         print(f"Failed to convert {len(failed_conversions)} files:")
         for failed in failed_conversions:
             print(f"  - File: {os.path.basename(failed['file'])}")
+    
+    # Clean up downloads folder after processing
+    try:
+        shutil.rmtree(directory)
+        print(f"✅ Cleaned up downloads folder: {directory}")
+    except Exception as e:
+        print(f"⚠️ Could not remove downloads folder: {e}")
+    
     print("--------------------------\n")
 
 
