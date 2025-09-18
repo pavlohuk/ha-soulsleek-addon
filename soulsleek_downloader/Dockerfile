@@ -40,7 +40,6 @@ RUN ARCH=$(uname -m) && \
     echo "Building for $DOTNET_ARCH..." && \
     dotnet publish slsk-batchdl/slsk-batchdl.csproj -c Release -r $DOTNET_ARCH --self-contained -p:PublishSingleFile=true -o /usr/local/bin && \
     ls -la /usr/local/bin/ && \
-    mv /usr/local/bin/slsk-batchdl /usr/local/bin/sldl && \
     echo "Verifying sldl installation:" && ls -la /usr/local/bin/sldl && \
     echo "Testing sldl:" && (/usr/local/bin/sldl --version || echo "Version check failed") && \
     rm -rf /tmp/slsk-batchdl
