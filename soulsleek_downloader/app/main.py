@@ -46,14 +46,15 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
                 f.write(line + '\n')
                 f.flush()
                 
-                # Track failed downloads
-                if "Failed:" in line and "artist:" in line.lower():
+                # Track failed downloads - check for various failure patterns
+                if line.startswith("Not found: ") or line.startswith("All downloads failed: "):
                     # Extract track info from failed download line
-                    failed_tracks.append(line)
+                    track_name = line.replace("Not found: ", "").replace("All downloads failed: ", "")
+                    failed_tracks.append(track_name)
                 
                 # Only show essential download progress
                 if any(keyword in line for keyword in [
-                    'Downloading', 'tracks:', 'Succeeded:', 'Failed:', 'Completed:'
+                    'Downloading', 'tracks:', 'Succeeded:', 'Failed:', 'Completed:', 'Not found:', 'All downloads failed:'
                 ]):
                     print(line, flush=True)
             
@@ -64,9 +65,7 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
             print(f"\n📋 DOWNLOAD SUMMARY:", flush=True)
             print(f"❌ Failed to download {len(failed_tracks)} tracks:", flush=True)
             for failed_track in failed_tracks:
-                # Clean up the failed track info for display
-                clean_track = failed_track.replace("Failed:", "").strip()
-                print(f"   • {clean_track}", flush=True)
+                print(f"   • {failed_track}", flush=True)
             print(flush=True)
         
         if process.returncode == 0:

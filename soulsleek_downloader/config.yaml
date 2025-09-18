@@ -1,5 +1,5 @@
 name: "Soulsleek Downloader"
-version: "0.5.6"
+version: "0.5.7"
 slug: "soulsleek_downloader"
 description: "Downloads music from Soulseek using a Spotify playlist link, normalizes it, and saves it to a specified directory."
 arch:
