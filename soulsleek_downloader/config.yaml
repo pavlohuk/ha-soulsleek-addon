@@ -11,10 +11,11 @@ arch:
 init: false
 map:
   - ssl
-  - media
+  - share:rw
+  - media:rw
 options:
   spotify_playlist_url: ""
-  output_directory: "/media/"
+  output_directory: "/share/music/"
   soulseek_user: ""
   soulseek_pass: ""
   preferred_format: "mp3"
