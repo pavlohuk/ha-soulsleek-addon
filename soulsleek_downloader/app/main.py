@@ -8,20 +8,10 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
     """
     Downloads music from Soulseek using slsk-batchdl and logs the output.
     """
-    # Debug: Check if sldl exists and works
-    import os
-    if os.path.exists("/usr/local/bin/sldl"):
-        print("✅ /usr/local/bin/sldl found")
-        os.system("ls -la /usr/local/bin/sldl")
-        print("🔍 Testing sldl execution:")
-        result = os.system("/usr/local/bin/sldl --help 2>&1 || echo 'sldl failed to run'")
-        print(f"Command result: {result}")
-        print("🔍 LDD dependencies:")
-        os.system("ldd /usr/local/bin/sldl 2>&1 || echo 'ldd failed'")
-    else:
-        print("❌ /usr/local/bin/sldl NOT found")
-        print("Contents of /usr/local/bin/:")
-        os.system("ls -la /usr/local/bin/")
+    # Verify sldl binary exists
+    if not os.path.exists("/usr/local/bin/sldl"):
+        print("❌ sldl binary not found")
+        return
     
     print(f"Downloading music from {playlist_url} to {output_dir}")
     command = [
@@ -33,24 +23,26 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
     ]
     
     try:
-        print(f"🎵 Starting download with command: {' '.join(command)}")
-        print("=" * 60)
+        print(f"🎵 Starting download from Spotify playlist...")
         
-        # Run process and stream output in real-time
+        # Run process and capture essential output only
         with open(log_file, 'w') as f:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
                                      universal_newlines=True, bufsize=1)
             
             for line in process.stdout:
                 line = line.rstrip()
-                if line:  # Only print non-empty lines
-                    print(line)  # This appears in add-on logs
-                    f.write(line + '\n')
-                    f.flush()
+                f.write(line + '\n')
+                f.flush()
+                
+                # Only show essential download progress
+                if any(keyword in line for keyword in [
+                    'Downloading', 'tracks:', 'Succeeded:', 'Failed:', 'Completed:'
+                ]):
+                    print(line)
             
             process.wait()
         
-        print("=" * 60)
         if process.returncode == 0:
             print(f"✅ Download completed successfully!")
         else:
@@ -104,14 +96,21 @@ def process_music(directory):
 
             command = ["bash", normalize_script_path, file_path, output_file]
             
-            # Run normalization and stream output to console
+            # Run normalization with minimal output
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
                                      universal_newlines=True, bufsize=1)
             
+            # Capture loudness values but don't show FFmpeg details
+            loudness_info = {}
             for line in process.stdout:
                 line = line.rstrip()
-                if line:
-                    print(f"   {line}")
+                if "Measured I:" in line:
+                    loudness_info['input'] = line.split(':')[1].strip()
+                elif "Target Offset:" in line:
+                    loudness_info['offset'] = line.split(':')[1].strip()
+                elif "Normalization complete" in line:
+                    if loudness_info:
+                        print(f"   📊 Input: {loudness_info.get('input', 'N/A')} LUFS → Target: -14 LUFS")
             
             process.wait()
             result_returncode = process.returncode
