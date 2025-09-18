@@ -9,7 +9,7 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
     """
     print(f"Downloading music from {playlist_url} to {output_dir}")
     command = [
-        "sldl", playlist_url,
+        "/usr/local/bin/sldl", playlist_url,
         "-p", output_dir,
         "--user", user,
         "--pass", password,
