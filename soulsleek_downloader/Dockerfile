@@ -50,7 +50,7 @@ RUN ARCH=$(uname -m) && \
     rm -rf /tmp/slsk-batchdl
 
 # Install beets for metadata and cover art processing
-RUN pip install --break-system-packages --no-cache-dir beets[fetchart,embedart,chroma,discogs,musicbrainz] && \
+RUN pip install --break-system-packages --no-cache-dir beets[fetchart,embedart,musicbrainz] && \
     mkdir -p /root/.config/beets
 
 # Copy beets configuration

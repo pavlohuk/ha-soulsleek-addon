@@ -10,6 +10,8 @@ import:
     quiet_fallback: skip
     timid: no
     log: /tmp/beets.log
+    autotag: yes
+    none_rec_action: skip
 
 match:
     strong_rec_thresh: 0.10
@@ -22,8 +24,6 @@ match:
 plugins: 
     - fetchart
     - embedart
-    - chroma
-    - discogs
     - musicbrainz
 
 fetchart:
@@ -42,9 +42,6 @@ embedart:
     ifempty: no
     maxwidth: 1000
     quality: 65
-
-chroma:
-    auto: yes
 
 musicbrainz:
     searchlimit: 20
