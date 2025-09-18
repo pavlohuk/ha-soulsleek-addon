@@ -3,6 +3,8 @@ import os
 import subprocess
 import json
 import shutil
+from concurrent.futures import ThreadPoolExecutor
+import multiprocessing
 
 def download_music(playlist_url, output_dir, log_file, user, password, pref_format):
     """
@@ -14,12 +16,16 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
         return
     
     print(f"Downloading music from {playlist_url} to {output_dir}")
+    # Use multiple concurrent downloads for sldl
+    max_concurrent = min(4, multiprocessing.cpu_count())
+    
     command = [
         "/usr/local/bin/sldl", playlist_url,
         "-p", output_dir,
         "--user", user,
         "--pass", password,
-        "--pref-format", pref_format
+        "--pref-format", pref_format,
+        "--concurrent-downloads", str(max_concurrent)
     ]
     
     try:
@@ -53,6 +59,45 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
         with open(log_file, 'a') as f:
             f.write(f"\n\nError: {e}")
 
+def normalize_single_file(file_path, normalize_script_path, converted_dir):
+    """
+    Normalize a single audio file.
+    """
+    try:
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        output_file = os.path.join(converted_dir, f"{base_name}.mp3")
+        
+        print(f"🎧 Processing: {os.path.basename(file_path)}")
+
+        command = ["bash", normalize_script_path, file_path, output_file]
+        
+        # Run normalization with minimal output
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                                 universal_newlines=True, bufsize=1)
+        
+        # Capture loudness values but don't show FFmpeg details
+        loudness_info = {}
+        for line in process.stdout:
+            line = line.rstrip()
+            if "Measured I:" in line:
+                loudness_info['input'] = line.split(':')[1].strip()
+            elif "Target Offset:" in line:
+                loudness_info['offset'] = line.split(':')[1].strip()
+            elif "Normalization complete" in line:
+                if loudness_info:
+                    print(f"   📊 Input: {loudness_info.get('input', 'N/A')} LUFS → Target: -14 LUFS")
+        
+        process.wait()
+        
+        if process.returncode == 0:
+            print(f"   ✅ Successfully normalized: {os.path.basename(output_file)}")
+            return {"status": "success", "file": file_path}
+        else:
+            return {"status": "failed", "file": file_path, "error": f"Exit code: {process.returncode}"}
+            
+    except Exception as e:
+        return {"status": "failed", "file": file_path, "error": str(e)}
+
 def process_music(directory):
     """
     Processes music in the given directory by finding all audio files,
@@ -82,46 +127,28 @@ def process_music(directory):
     converted_dir = parent_dir
     os.makedirs(converted_dir, exist_ok=True)
     
-    print(f"Found {len(audio_files)} audio files. Converted files will be saved to: {converted_dir}")
+    # Determine number of threads (use half of available cores for stability)
+    max_workers = max(1, multiprocessing.cpu_count() // 2)
+    print(f"Found {len(audio_files)} audio files. Using {max_workers} threads for processing.")
+    print(f"Converted files will be saved to: {converted_dir}")
 
     successful_conversions = []
     failed_conversions = []
 
-    for file_path in audio_files:
-        try:
-            base_name = os.path.splitext(os.path.basename(file_path))[0]
-            output_file = os.path.join(converted_dir, f"{base_name}.mp3")
-            
-            print(f"🎧 Processing: {os.path.basename(file_path)}")
-
-            command = ["bash", normalize_script_path, file_path, output_file]
-            
-            # Run normalization with minimal output
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                     universal_newlines=True, bufsize=1)
-            
-            # Capture loudness values but don't show FFmpeg details
-            loudness_info = {}
-            for line in process.stdout:
-                line = line.rstrip()
-                if "Measured I:" in line:
-                    loudness_info['input'] = line.split(':')[1].strip()
-                elif "Target Offset:" in line:
-                    loudness_info['offset'] = line.split(':')[1].strip()
-                elif "Normalization complete" in line:
-                    if loudness_info:
-                        print(f"   📊 Input: {loudness_info.get('input', 'N/A')} LUFS → Target: -14 LUFS")
-            
-            process.wait()
-            result_returncode = process.returncode
-
-            if result_returncode == 0:
-                successful_conversions.append(file_path)
-                print(f"   ✅ Successfully normalized: {os.path.basename(output_file)}")
+    # Process files in parallel
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for file_path in audio_files:
+            future = executor.submit(normalize_single_file, file_path, normalize_script_path, converted_dir)
+            futures.append(future)
+        
+        # Collect results
+        for future in futures:
+            result = future.result()
+            if result["status"] == "success":
+                successful_conversions.append(result["file"])
             else:
-                failed_conversions.append({"file": file_path, "error": f"Exit code: {result_returncode}"})
-        except Exception as e:
-            failed_conversions.append({"file": file_path, "error": str(e)})
+                failed_conversions.append({"file": result["file"], "error": result["error"]})
 
     print("\n--- PROCESSING REPORT ---")
     print(f"Successfully converted {len(successful_conversions)} files.")

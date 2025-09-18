@@ -18,7 +18,7 @@ echo "Running first pass loudness analysis..."
 
 # Run the first pass and capture the detailed log output.
 # We redirect stderr to a variable.
-LOUDNORM_LOG=$(ffmpeg -hide_banner -i "$INPUT_FILE" -af loudnorm=I=$TARGET_LUFS:TP=$TRUE_PEAK:LRA=$TARGET_LRA:print_format=summary -threads 1 -f null - 2>&1)
+LOUDNORM_LOG=$(ffmpeg -hide_banner -i "$INPUT_FILE" -af loudnorm=I=$TARGET_LUFS:TP=$TRUE_PEAK:LRA=$TARGET_LRA:print_format=summary -f null - 2>&1)
 
 echo "First pass complete. Parsing statistics..."
 
@@ -54,6 +54,6 @@ echo "  - Target Offset:   $TARGET_OFFSET"
 echo "Running second pass to apply normalization..."
 
 # Run the second pass to apply the normalization with the parsed values.
-ffmpeg -i "$INPUT_FILE" -af loudnorm=I=$TARGET_LUFS:TP=$TRUE_PEAK:LRA=$TARGET_LRA:measured_I=$MEASURED_I:measured_LRA=$MEASURED_LRA:measured_TP=$MEASURED_TP:measured_thresh=$MEASURED_THRESH:offset=$TARGET_OFFSET -c:a libmp3lame -ar 44100 -b:a 320k -threads 1 "$OUTPUT_FILE" -y
+ffmpeg -i "$INPUT_FILE" -af loudnorm=I=$TARGET_LUFS:TP=$TRUE_PEAK:LRA=$TARGET_LRA:measured_I=$MEASURED_I:measured_LRA=$MEASURED_LRA:measured_TP=$MEASURED_TP:measured_thresh=$MEASURED_THRESH:offset=$TARGET_OFFSET -c:a libmp3lame -ar 44100 -b:a 320k "$OUTPUT_FILE" -y
 
 echo "Normalization complete for: $OUTPUT_FILE"
