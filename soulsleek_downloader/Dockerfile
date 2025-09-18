@@ -24,27 +24,26 @@ RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8
 # Install git for source cloning
 RUN apk add --no-cache git unzip
 
-# Install slsk-batchdl from GitHub releases or compile from source
+# Compile slsk-batchdl from source with musl compatibility for all architectures
 RUN ARCH=$(uname -m) && \
     echo "Detected architecture: $ARCH" && \
+    echo "Compiling from source for musl compatibility..." && \
+    git clone https://github.com/fiso64/slsk-batchdl.git /tmp/slsk-batchdl && \
+    cd /tmp/slsk-batchdl && \
     if [ "$ARCH" = "x86_64" ]; then \
-        echo "Downloading x64 binary..." && \
-        curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/sldl_linux-x64.zip -o sldl.zip && \
-        unzip sldl.zip && ls -la && mv sldl /usr/local/bin/ && chmod +x /usr/local/bin/sldl; \
-    elif [ "$ARCH" = "armv7l" ]; then \
-        echo "Downloading ARM binary..." && \
-        curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/sldl_linux-arm.zip -o sldl.zip && \
-        unzip sldl.zip && ls -la && mv sldl /usr/local/bin/ && chmod +x /usr/local/bin/sldl; \
+        DOTNET_ARCH="linux-musl-x64"; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        DOTNET_ARCH="linux-musl-arm64"; \
     else \
-        echo "Compiling from source for architecture: $ARCH" && \
-        git clone https://github.com/fiso64/slsk-batchdl.git /tmp/slsk-batchdl && \
-        cd /tmp/slsk-batchdl && \
-        dotnet publish -c Release -r linux-musl-x64 --self-contained -p:PublishSingleFile=true -o /usr/local/bin && \
-        ls -la /usr/local/bin/ && \
-        mv /usr/local/bin/slsk-batchdl /usr/local/bin/sldl; \
+        DOTNET_ARCH="linux-musl-x64"; \
     fi && \
+    echo "Building for $DOTNET_ARCH..." && \
+    dotnet publish -c Release -r $DOTNET_ARCH --self-contained -p:PublishSingleFile=true -o /usr/local/bin && \
+    ls -la /usr/local/bin/ && \
+    mv /usr/local/bin/slsk-batchdl /usr/local/bin/sldl && \
     echo "Verifying sldl installation:" && ls -la /usr/local/bin/sldl && \
-    rm -rf /tmp/slsk-batchdl sldl.zip
+    echo "Testing sldl:" && (/usr/local/bin/sldl --version || echo "Version check failed") && \
+    rm -rf /tmp/slsk-batchdl
 
 # Copy app
 COPY app/ /app/
