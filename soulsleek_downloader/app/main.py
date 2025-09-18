@@ -7,6 +7,16 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
     """
     Downloads music from Soulseek using slsk-batchdl and logs the output.
     """
+    # Debug: Check if sldl exists
+    import os
+    if os.path.exists("/usr/local/bin/sldl"):
+        print("✅ /usr/local/bin/sldl found")
+        os.system("ls -la /usr/local/bin/sldl")
+    else:
+        print("❌ /usr/local/bin/sldl NOT found")
+        print("Contents of /usr/local/bin/:")
+        os.system("ls -la /usr/local/bin/")
+    
     print(f"Downloading music from {playlist_url} to {output_dir}")
     command = [
         "/usr/local/bin/sldl", playlist_url,
