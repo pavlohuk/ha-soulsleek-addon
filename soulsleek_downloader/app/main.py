@@ -3,6 +3,7 @@ import os
 import subprocess
 import json
 import shutil
+import sys
 from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
 import tempfile
@@ -10,13 +11,14 @@ import tempfile
 def download_music(playlist_url, output_dir, log_file, user, password, pref_format):
     """
     Downloads music from Soulseek using slsk-batchdl and logs the output.
+    Returns tuple of (success, failed_tracks_list)
     """
     # Verify sldl binary exists
     if not os.path.exists("/usr/local/bin/sldl"):
-        print("❌ sldl binary not found")
-        return
+        print("❌ sldl binary not found", flush=True)
+        return False, []
     
-    print(f"Downloading music from {playlist_url} to {output_dir}")
+    print(f"Downloading music from {playlist_url} to {output_dir}", flush=True)
     # Use multiple concurrent downloads for sldl
     max_concurrent = min(4, multiprocessing.cpu_count())
     
@@ -29,36 +31,56 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
         "--concurrent-downloads", str(max_concurrent)
     ]
     
+    failed_tracks = []
+    
     try:
-        print(f"🎵 Starting download from Spotify playlist...")
+        print(f"🎵 Starting download from Spotify playlist...", flush=True)
         
         # Run process and capture essential output only
         with open(log_file, 'w') as f:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                     universal_newlines=True, bufsize=1)
+                                     universal_newlines=True, bufsize=0)
             
             for line in process.stdout:
                 line = line.rstrip()
                 f.write(line + '\n')
                 f.flush()
                 
+                # Track failed downloads
+                if "Failed:" in line and "artist:" in line.lower():
+                    # Extract track info from failed download line
+                    failed_tracks.append(line)
+                
                 # Only show essential download progress
                 if any(keyword in line for keyword in [
                     'Downloading', 'tracks:', 'Succeeded:', 'Failed:', 'Completed:'
                 ]):
-                    print(line)
+                    print(line, flush=True)
             
             process.wait()
         
+        # Show download summary
+        if failed_tracks:
+            print(f"\n📋 DOWNLOAD SUMMARY:", flush=True)
+            print(f"❌ Failed to download {len(failed_tracks)} tracks:", flush=True)
+            for failed_track in failed_tracks:
+                # Clean up the failed track info for display
+                clean_track = failed_track.replace("Failed:", "").strip()
+                print(f"   • {clean_track}", flush=True)
+            print(flush=True)
+        
         if process.returncode == 0:
-            print(f"✅ Download completed successfully!")
+            print(f"✅ Download completed successfully!", flush=True)
+            return True, failed_tracks
         else:
-            print(f"❌ Download failed with exit code: {process.returncode}")
+            print(f"❌ Download failed with exit code: {process.returncode}", flush=True)
+            return False, failed_tracks
             
     except Exception as e:
-        print(f"❌ Download error: {e}")
+        print(f"❌ Download error: {e}", flush=True)
         with open(log_file, 'a') as f:
             f.write(f"\n\nError: {e}")
+        return False, failed_tracks
 
 def normalize_single_file(file_path, normalize_script_path, converted_dir):
     """
@@ -68,13 +90,13 @@ def normalize_single_file(file_path, normalize_script_path, converted_dir):
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         output_file = os.path.join(converted_dir, f"{base_name}.mp3")
         
-        print(f"🎧 Processing: {os.path.basename(file_path)}")
+        print(f"🎧 Processing: {os.path.basename(file_path)}", flush=True)
 
         command = ["bash", normalize_script_path, file_path, output_file]
         
         # Run normalization with minimal output
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                 universal_newlines=True, bufsize=1)
+                                 universal_newlines=True, bufsize=0)
         
         # Capture loudness values but don't show FFmpeg details
         loudness_info = {}
@@ -86,12 +108,12 @@ def normalize_single_file(file_path, normalize_script_path, converted_dir):
                 loudness_info['offset'] = line.split(':')[1].strip()
             elif "Normalization complete" in line:
                 if loudness_info:
-                    print(f"   📊 Input: {loudness_info.get('input', 'N/A')} LUFS → Target: -14 LUFS")
+                    print(f"   📊 Input: {loudness_info.get('input', 'N/A')} LUFS → Target: -14 LUFS", flush=True)
         
         process.wait()
         
         if process.returncode == 0:
-            print(f"   ✅ Successfully normalized: {os.path.basename(output_file)}")
+            print(f"   ✅ Successfully normalized: {os.path.basename(output_file)}", flush=True)
             return {"status": "success", "file": file_path}
         else:
             return {"status": "failed", "file": file_path, "error": f"Exit code: {process.returncode}"}
@@ -103,41 +125,41 @@ def update_metadata_with_beets(music_directory):
     """
     Update metadata and fetch cover art using beets.
     """
-    print(f"🎨 Updating metadata and fetching cover art...")
+    print(f"🎨 Updating metadata and fetching cover art...", flush=True)
     
     try:
         # Import files to beets and update metadata
         command = ["beet", "import", "-A", "-q", music_directory]
         
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                 universal_newlines=True, bufsize=1)
+                                 universal_newlines=True, bufsize=0)
         
         import_successful = False
         for line in process.stdout:
             line = line.rstrip()
             if line:
                 if "tagging" in line.lower() or "found" in line.lower():
-                    print(f"   📋 {line}")
+                    print(f"   📋 {line}", flush=True)
                 elif "fetching" in line.lower() or "art" in line.lower():
-                    print(f"   🖼️ {line}")
+                    print(f"   🖼️ {line}", flush=True)
                 elif "error" in line.lower():
-                    print(f"   ⚠️ {line}")
+                    print(f"   ⚠️ {line}", flush=True)
                 else:
                     # Show other important messages
                     if any(keyword in line.lower() for keyword in ["album", "track", "match"]):
-                        print(f"   {line}")
+                        print(f"   {line}", flush=True)
         
         process.wait()
         
         if process.returncode == 0:
-            print(f"   ✅ Metadata and cover art processing completed")
+            print(f"   ✅ Metadata and cover art processing completed", flush=True)
             return True
         else:
-            print(f"   ⚠️ Beets processing completed with warnings (exit code: {process.returncode})")
+            print(f"   ⚠️ Beets processing completed with warnings (exit code: {process.returncode})", flush=True)
             return True  # Continue even with warnings
             
     except Exception as e:
-        print(f"   ❌ Beets processing failed: {e}")
+        print(f"   ❌ Beets processing failed: {e}", flush=True)
         return False
 
 def process_music(directory):
@@ -145,13 +167,13 @@ def process_music(directory):
     Processes music in the given directory by finding all audio files,
     running the normalize.sh script on them, and reporting any failures.
     """
-    print(f"Starting to process and normalize music in: {directory}")
+    print(f"Starting to process and normalize music in: {directory}", flush=True)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     normalize_script_path = os.path.join(script_dir, "normalize.sh")
 
     if not os.access(normalize_script_path, os.X_OK):
-        print(f"[ERROR] Normalize script not found or not executable at: {normalize_script_path}")
+        print(f"[ERROR] Normalize script not found or not executable at: {normalize_script_path}", flush=True)
         return
 
     audio_files = []
@@ -162,7 +184,7 @@ def process_music(directory):
                 audio_files.append(os.path.join(root, file))
 
     if not audio_files:
-        print("No audio files found to process.")
+        print("No audio files found to process.", flush=True)
         return
 
     parent_dir = os.path.abspath(os.path.join(directory, os.pardir))
@@ -171,8 +193,8 @@ def process_music(directory):
     
     # Determine number of threads (use half of available cores for stability)
     max_workers = max(1, multiprocessing.cpu_count() // 2)
-    print(f"Found {len(audio_files)} audio files. Using {max_workers} threads for processing.")
-    print(f"Converted files will be saved to: {converted_dir}")
+    print(f"Found {len(audio_files)} audio files. Using {max_workers} threads for processing.", flush=True)
+    print(f"Converted files will be saved to: {converted_dir}", flush=True)
 
     successful_conversions = []
     failed_conversions = []
@@ -192,27 +214,27 @@ def process_music(directory):
             else:
                 failed_conversions.append({"file": result["file"], "error": result["error"]})
 
-    print("\n--- PROCESSING REPORT ---")
-    print(f"Successfully converted {len(successful_conversions)} files.")
+    print("\n--- PROCESSING REPORT ---", flush=True)
+    print(f"Successfully converted {len(successful_conversions)} files.", flush=True)
     
     if failed_conversions:
-        print(f"Failed to convert {len(failed_conversions)} files:")
+        print(f"Failed to convert {len(failed_conversions)} files:", flush=True)
         for failed in failed_conversions:
-            print(f"  - File: {os.path.basename(failed['file'])}")
+            print(f"  - File: {os.path.basename(failed['file'])}", flush=True)
     
     # Update metadata and fetch cover art with beets (only if conversions were successful)
     if successful_conversions:
-        print(f"\n🎨 Starting metadata and cover art processing...")
+        print(f"\n🎨 Starting metadata and cover art processing...", flush=True)
         update_metadata_with_beets(converted_dir)
     
     # Clean up downloads folder after processing
     try:
         shutil.rmtree(directory)
-        print(f"✅ Cleaned up downloads folder: {directory}")
+        print(f"✅ Cleaned up downloads folder: {directory}", flush=True)
     except Exception as e:
-        print(f"⚠️ Could not remove downloads folder: {e}")
+        print(f"⚠️ Could not remove downloads folder: {e}", flush=True)
     
-    print("--------------------------\n")
+    print("--------------------------\n", flush=True)
 
 
 def main():
@@ -235,7 +257,7 @@ def main():
     if args.process_dir:
         if args.playlist_url or args.user or getattr(args, 'pass') or args.pref_format:
             parser.error("--process-dir cannot be used with download arguments.")
-        print(f"Processing local directory: {args.process_dir}")
+        print(f"Processing local directory: {args.process_dir}", flush=True)
         process_music(args.process_dir)
 
     elif args.playlist_url:
@@ -247,7 +269,7 @@ def main():
         
         log_file = os.path.join(args.output_dir, "download_log.txt")
 
-        download_music(
+        download_success, failed_tracks = download_music(
             args.playlist_url,
             download_dir,
             log_file,
@@ -255,12 +277,14 @@ def main():
             getattr(args, 'pass'),
             args.pref_format
         )
-        process_music(download_dir)
+        
+        if download_success or os.listdir(download_dir):  # Process if download succeeded or files exist
+            process_music(download_dir)
     
     else:
         parser.error("You must specify either --playlist-url for downloading or --process-dir for local processing.")
 
-    print("Workflow complete.")
+    print("Workflow complete.", flush=True)
 
 if __name__ == "__main__":
     main()
