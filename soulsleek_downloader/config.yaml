@@ -13,9 +13,10 @@ map:
   - ssl
   - share:rw
   - media:rw
+full_access: true
 options:
   spotify_playlist_url: ""
-  output_directory: "/share/music/"
+  output_directory: "/media/"
   soulseek_user: ""
   soulseek_pass: ""
   preferred_format: "mp3"
