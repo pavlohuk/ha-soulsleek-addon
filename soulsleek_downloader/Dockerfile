@@ -26,18 +26,24 @@ RUN apk add --no-cache git unzip
 
 # Install slsk-batchdl from GitHub releases or compile from source
 RUN ARCH=$(uname -m) && \
+    echo "Detected architecture: $ARCH" && \
     if [ "$ARCH" = "x86_64" ]; then \
+        echo "Downloading x64 binary..." && \
         curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/sldl_linux-x64.zip -o sldl.zip && \
-        unzip sldl.zip && mv sldl /usr/local/bin/ && chmod +x /usr/local/bin/sldl; \
+        unzip sldl.zip && ls -la && mv sldl /usr/local/bin/ && chmod +x /usr/local/bin/sldl; \
     elif [ "$ARCH" = "armv7l" ]; then \
+        echo "Downloading ARM binary..." && \
         curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/sldl_linux-arm.zip -o sldl.zip && \
-        unzip sldl.zip && mv sldl /usr/local/bin/ && chmod +x /usr/local/bin/sldl; \
+        unzip sldl.zip && ls -la && mv sldl /usr/local/bin/ && chmod +x /usr/local/bin/sldl; \
     else \
+        echo "Compiling from source for architecture: $ARCH" && \
         git clone https://github.com/fiso64/slsk-batchdl.git /tmp/slsk-batchdl && \
         cd /tmp/slsk-batchdl && \
         dotnet publish -c Release -r linux-musl-x64 --self-contained -p:PublishSingleFile=true -o /usr/local/bin && \
+        ls -la /usr/local/bin/ && \
         mv /usr/local/bin/slsk-batchdl /usr/local/bin/sldl; \
     fi && \
+    echo "Verifying sldl installation:" && ls -la /usr/local/bin/sldl && \
     rm -rf /tmp/slsk-batchdl sldl.zip
 
 # Copy app
