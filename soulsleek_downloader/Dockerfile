@@ -9,6 +9,7 @@ RUN apk add --no-cache \
     python3 \
     python3-dev \
     py3-pip \
+    py3-venv \
     ffmpeg \
     curl \
     bash \
@@ -50,7 +51,9 @@ RUN ARCH=$(uname -m) && \
     rm -rf /tmp/slsk-batchdl
 
 # Install beets for metadata and cover art processing
-RUN pip3 install --no-cache-dir beets[fetchart,embedart,chroma,discogs,musicbrainz] && \
+RUN python3 -m venv /opt/beets && \
+    /opt/beets/bin/pip install --no-cache-dir beets[fetchart,embedart,chroma,discogs,musicbrainz] && \
+    ln -s /opt/beets/bin/beet /usr/local/bin/beet && \
     mkdir -p /root/.config/beets
 
 # Copy beets configuration
