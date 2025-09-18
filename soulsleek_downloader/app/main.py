@@ -33,13 +33,33 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
     ]
     
     try:
+        print(f"🎵 Starting download with command: {' '.join(command)}")
+        print("=" * 60)
+        
+        # Run process and stream output in real-time
         with open(log_file, 'w') as f:
-            subprocess.run(command, check=True, stdout=f, stderr=subprocess.STDOUT)
-        print(f"Download process finished. See {log_file} for details.")
-    except subprocess.CalledProcessError as e:
-        print(f"An error occurred during download: {e}")
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                                     universal_newlines=True, bufsize=1)
+            
+            for line in process.stdout:
+                line = line.rstrip()
+                if line:  # Only print non-empty lines
+                    print(line)  # This appears in add-on logs
+                    f.write(line + '\n')
+                    f.flush()
+            
+            process.wait()
+        
+        print("=" * 60)
+        if process.returncode == 0:
+            print(f"✅ Download completed successfully!")
+        else:
+            print(f"❌ Download failed with exit code: {process.returncode}")
+            
+    except Exception as e:
+        print(f"❌ Download error: {e}")
         with open(log_file, 'a') as f:
-            f.write(f"\n\nAn error occurred: {e}")
+            f.write(f"\n\nError: {e}")
 
 def process_music(directory):
     """
@@ -80,15 +100,27 @@ def process_music(directory):
             base_name = os.path.splitext(os.path.basename(file_path))[0]
             output_file = os.path.join(converted_dir, f"{base_name}.mp3")
             
-            print(f"  - Processing: {os.path.basename(file_path)}")
+            print(f"🎧 Processing: {os.path.basename(file_path)}")
 
             command = ["bash", normalize_script_path, file_path, output_file]
-            result = subprocess.run(command, check=False, capture_output=True, text=True, encoding='utf-8')
+            
+            # Run normalization and stream output to console
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                                     universal_newlines=True, bufsize=1)
+            
+            for line in process.stdout:
+                line = line.rstrip()
+                if line:
+                    print(f"   {line}")
+            
+            process.wait()
+            result_returncode = process.returncode
 
-            if result.returncode == 0:
+            if result_returncode == 0:
                 successful_conversions.append(file_path)
+                print(f"   ✅ Successfully normalized: {os.path.basename(output_file)}")
             else:
-                failed_conversions.append({"file": file_path, "error": result.stderr})
+                failed_conversions.append({"file": file_path, "error": f"Exit code: {result_returncode}"})
         except Exception as e:
             failed_conversions.append({"file": file_path, "error": str(e)})
 
