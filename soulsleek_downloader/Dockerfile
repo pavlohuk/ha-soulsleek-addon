@@ -17,8 +17,8 @@ RUN apk add --no-cache \
     libstdc++ \
     zlib
 
-# Install .NET 8 Runtime manually
-RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --runtime dotnet --install-dir /usr/share/dotnet \
+# Install .NET 8 SDK manually (needed for dotnet tool command)
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --install-dir /usr/share/dotnet \
     && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 
 # Set up slsk-batchdl
