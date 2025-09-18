@@ -21,8 +21,18 @@ RUN apk add --no-cache \
 RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --runtime dotnet --install-dir /usr/share/dotnet \
     && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 
-# Install slsk-batchdl from GitHub releases
-RUN curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/slsk-batchdl-linux-x64 -o /usr/local/bin/sldl \
+# Install slsk-batchdl from GitHub releases based on architecture
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        SLDL_ARCH="linux-x64"; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        SLDL_ARCH="linux-arm64"; \
+    elif [ "$ARCH" = "armv7l" ]; then \
+        SLDL_ARCH="linux-arm"; \
+    else \
+        SLDL_ARCH="linux-x64"; \
+    fi && \
+    curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/slsk-batchdl-${SLDL_ARCH} -o /usr/local/bin/sldl \
     && chmod +x /usr/local/bin/sldl
 
 # Copy app
