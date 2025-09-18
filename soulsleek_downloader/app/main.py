@@ -15,8 +15,6 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
         print("🔍 Testing sldl execution:")
         result = os.system("/usr/local/bin/sldl --help 2>&1 || echo 'sldl failed to run'")
         print(f"Command result: {result}")
-        print("🔍 File type:")
-        os.system("file /usr/local/bin/sldl")
         print("🔍 LDD dependencies:")
         os.system("ldd /usr/local/bin/sldl 2>&1 || echo 'ldd failed'")
     else:
