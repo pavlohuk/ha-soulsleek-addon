@@ -17,23 +17,28 @@ RUN apk add --no-cache \
     libstdc++ \
     zlib
 
-# Install .NET 8 Runtime for slsk-batchdl
-RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --runtime dotnet --install-dir /usr/share/dotnet \
+# Install .NET 8 SDK for slsk-batchdl compilation
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --install-dir /usr/share/dotnet \
     && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 
-# Install slsk-batchdl from GitHub releases based on architecture
+# Install git for source cloning
+RUN apk add --no-cache git unzip
+
+# Install slsk-batchdl from GitHub releases or compile from source
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
-        SLDL_ARCH="linux-x64"; \
-    elif [ "$ARCH" = "aarch64" ]; then \
-        SLDL_ARCH="linux-arm64"; \
+        curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/sldl_linux-x64.zip -o sldl.zip && \
+        unzip sldl.zip && mv sldl /usr/local/bin/ && chmod +x /usr/local/bin/sldl; \
     elif [ "$ARCH" = "armv7l" ]; then \
-        SLDL_ARCH="linux-arm"; \
+        curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/sldl_linux-arm.zip -o sldl.zip && \
+        unzip sldl.zip && mv sldl /usr/local/bin/ && chmod +x /usr/local/bin/sldl; \
     else \
-        SLDL_ARCH="linux-x64"; \
+        git clone https://github.com/fiso64/slsk-batchdl.git /tmp/slsk-batchdl && \
+        cd /tmp/slsk-batchdl && \
+        dotnet publish -c Release -r linux-musl-x64 --self-contained -p:PublishSingleFile=true -o /usr/local/bin && \
+        mv /usr/local/bin/slsk-batchdl /usr/local/bin/sldl; \
     fi && \
-    curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/slsk-batchdl-${SLDL_ARCH} -o /usr/local/bin/sldl \
-    && chmod +x /usr/local/bin/sldl
+    rm -rf /tmp/slsk-batchdl sldl.zip
 
 # Copy app
 COPY app/ /app/
