@@ -17,15 +17,13 @@ RUN apk add --no-cache \
     libstdc++ \
     zlib
 
-# Install .NET 8 SDK manually (needed for dotnet tool command)
-RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --install-dir /usr/share/dotnet \
+# Install .NET 8 Runtime for slsk-batchdl
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --runtime dotnet --install-dir /usr/share/dotnet \
     && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 
-# Set up slsk-batchdl
-RUN dotnet tool install --global slsk-batchdl --version 2.4.7
-
-# Add tools to path
-ENV PATH="/root/.dotnet/tools:${PATH}"
+# Install slsk-batchdl from GitHub releases
+RUN curl -L https://github.com/fiso64/slsk-batchdl/releases/download/v2.5.0/slsk-batchdl-linux-x64 -o /usr/local/bin/sldl \
+    && chmod +x /usr/local/bin/sldl
 
 # Copy app
 COPY app/ /app/
