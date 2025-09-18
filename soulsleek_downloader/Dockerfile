@@ -7,7 +7,6 @@ ENV LANG=C.UTF-8
 # Install system dependencies
 RUN apk add --no-cache \
     python3 \
-    py3-pip \
     ffmpeg \
     curl \
     bash \
@@ -21,9 +20,6 @@ RUN apk add --no-cache \
 # Install .NET 8 Runtime manually
 RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --runtime dotnet --install-dir /usr/share/dotnet \
     && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
-
-# Install beets (if needed)
-RUN pip3 install beets
 
 # Set up slsk-batchdl
 RUN dotnet tool install --global slsk-batchdl --version 2.4.7
