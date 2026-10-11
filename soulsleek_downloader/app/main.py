@@ -7,8 +7,9 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
 import tempfile
+from youtube_fallback import download_missing_tracks
 
-def download_music(playlist_url, output_dir, log_file, user, password, pref_format):
+def download_music(playlist_url, output_dir, log_file, user, password, pref_format, index_file=None):
     """
     Downloads music from Soulseek using slsk-batchdl and logs the output.
     Returns tuple of (success, failed_tracks_list)
@@ -28,8 +29,11 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
         "--user", user,
         "--pass", password,
         "--pref-format", pref_format,
-        "--concurrent-downloads", str(max_concurrent)
+        "--concurrent-downloads", str(max_concurrent),
+        "--no-progress",
     ]
+    if index_file:
+        command.extend(["--index-path", index_file])
     
     failed_tracks = []
     
@@ -39,7 +43,7 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
         # Run process and capture essential output only
         with open(log_file, 'w') as f:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                     universal_newlines=True, bufsize=0)
+                                     universal_newlines=True, encoding="utf-8", errors="replace", bufsize=0)
             
             for line in process.stdout:
                 line = line.rstrip()
@@ -58,6 +62,7 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
                 ]):
                     print(line, flush=True)
             
+            process.stdout.close()
             process.wait()
         
         # Show download summary
@@ -95,7 +100,7 @@ def normalize_single_file(file_path, normalize_script_path, converted_dir):
         
         # Run normalization with minimal output
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                 universal_newlines=True, bufsize=0)
+                                 universal_newlines=True, encoding="utf-8", errors="replace", bufsize=0)
         
         # Capture loudness values but don't show FFmpeg details
         loudness_info = {}
@@ -109,6 +114,7 @@ def normalize_single_file(file_path, normalize_script_path, converted_dir):
                 if loudness_info:
                     print(f"   📊 Input: {loudness_info.get('input', 'N/A')} LUFS → Target: -14 LUFS", flush=True)
         
+        process.stdout.close()
         process.wait()
         
         if process.returncode == 0:
@@ -131,7 +137,7 @@ def update_metadata_with_beets(music_directory):
         command = ["beet", "import", "-A", "-q", music_directory]
         
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                 universal_newlines=True, bufsize=0)
+                                 universal_newlines=True, encoding="utf-8", errors="replace", bufsize=0)
         
         import_successful = False
         for line in process.stdout:
@@ -148,6 +154,7 @@ def update_metadata_with_beets(music_directory):
                     if any(keyword in line.lower() for keyword in ["album", "track", "match"]):
                         print(f"   {line}", flush=True)
         
+        process.stdout.close()
         process.wait()
         
         if process.returncode == 0:
@@ -226,7 +233,12 @@ def process_music(directory):
         print(f"\n🎨 Starting metadata and cover art processing...", flush=True)
         update_metadata_with_beets(converted_dir)
     
-    # Clean up downloads folder after processing
+    # Preserve originals when conversion fails, including recovered YouTube audio.
+    if failed_conversions:
+        print(f"⚠️ Keeping downloads for retry: {directory}", flush=True)
+        return
+
+    # Clean up downloads folder after successful processing
     try:
         shutil.rmtree(directory)
         print(f"✅ Cleaned up downloads folder: {directory}", flush=True)
@@ -246,6 +258,10 @@ def main():
     download_group.add_argument("--user", help="Soulseek username")
     download_group.add_argument("--pass", help="Soulseek password")
     download_group.add_argument("--pref-format", help="Preferred file format for download")
+    download_group.add_argument(
+        "--youtube-fallback", action=argparse.BooleanOptionalAction, default=True,
+        help="Recover missing Soulseek tracks from YouTube (default: enabled)",
+    )
 
     # Group for local processing functionality
     process_group = parser.add_argument_group('Process Local Folder')
@@ -268,14 +284,15 @@ def main():
         
         log_file = os.path.join(args.output_dir, "download_log.txt")
 
-        download_success, failed_tracks = download_music(
-            args.playlist_url,
-            download_dir,
-            log_file,
-            args.user,
-            getattr(args, 'pass'),
-            args.pref_format
-        )
+        # A fresh structured index prevents retrying failures from another playlist/run.
+        with tempfile.TemporaryDirectory(prefix="soulsleek-index-") as index_dir:
+            index_file = os.path.join(index_dir, "tracks.csv")
+            download_success, failed_tracks = download_music(
+                args.playlist_url, download_dir, log_file, args.user,
+                getattr(args, 'pass'), args.pref_format, index_file=index_file,
+            )
+            if args.youtube_fallback:
+                download_missing_tracks(index_file, download_dir, log_file)
         
         if download_success or os.listdir(download_dir):  # Process if download succeeded or files exist
             process_music(download_dir)
