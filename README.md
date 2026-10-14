@@ -10,6 +10,7 @@ Downloads music from Soulseek using Spotify playlist links and processes it for 
 
 **Features:**
 - Download from Soulseek using Spotify playlist URLs
+- Automatically recover missing tracks from YouTube (optional)
 - Two-pass loudness normalization (-14 LUFS)
 - Convert to 320kbps MP3, 44.1kHz (Sonos compatible)
 - Local directory processing support
@@ -35,6 +36,9 @@ Downloads music from Soulseek using Spotify playlist links and processes it for 
 - **soulseek_user**: Your Soulseek username
 - **soulseek_pass**: Your Soulseek password
 - **preferred_format**: Preferred download format (`mp3` or `flac`)
+- **youtube_fallback**: Search YouTube after a track is not found or all Soulseek downloads fail (default: `true`)
+
+See the [add-on documentation](soulsleek_downloader/README.md) for fallback behavior and troubleshooting.
 
 ## Requirements
 

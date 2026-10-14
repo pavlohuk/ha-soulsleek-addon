@@ -1,7 +1,7 @@
 name: "Soulsleek Downloader"
-version: "0.5.7"
+version: "0.6.0"
 slug: "soulsleek_downloader"
-description: "Downloads music from Soulseek using a Spotify playlist link, normalizes it, and saves it to a specified directory."
+description: "Downloads Spotify playlist tracks from Soulseek with YouTube fallback, then normalizes and saves them."
 arch:
   - aarch64
   - amd64
@@ -20,9 +20,11 @@ options:
   soulseek_user: ""
   soulseek_pass: ""
   preferred_format: "mp3"
+  youtube_fallback: true
 schema:
   spotify_playlist_url: "str"
   output_directory: "str"
   soulseek_user: "str"
   soulseek_pass: "password"
   preferred_format: "str"
+  youtube_fallback: "bool?"

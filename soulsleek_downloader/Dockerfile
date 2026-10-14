@@ -10,6 +10,7 @@ RUN apk add --no-cache \
     python3-dev \
     py3-pip \
     ffmpeg \
+    nodejs \
     curl \
     bash \
     icu-libs \
@@ -33,8 +34,11 @@ RUN apk add --no-cache git unzip
 RUN ARCH=$(uname -m) && \
     echo "Detected architecture: $ARCH" && \
     echo "Compiling from source for musl compatibility..." && \
-    git clone https://github.com/fiso64/slsk-batchdl.git /tmp/slsk-batchdl && \
+    git clone --depth 1 --branch v2.6.0 https://github.com/fiso64/slsk-batchdl.git /tmp/slsk-batchdl && \
     cd /tmp/slsk-batchdl && \
+    # Keep the existing CLI/index format; upstream 3.x renamed the project.
+    # Build both projects on the installed .NET 8 runtime.
+    sed -i 's/net6.0/net8.0/g' slsk-batchdl/slsk-batchdl.csproj slsk-batchdl.HelpGenerator/slsk-batchdl.HelpGenerator.csproj && \
     if [ "$ARCH" = "x86_64" ]; then \
         DOTNET_ARCH="linux-musl-x64"; \
     elif [ "$ARCH" = "aarch64" ]; then \
@@ -50,7 +54,7 @@ RUN ARCH=$(uname -m) && \
     rm -rf /tmp/slsk-batchdl
 
 # Install beets for metadata and cover art processing
-RUN pip install --break-system-packages --no-cache-dir beets[fetchart,embedart,musicbrainz] && \
+RUN pip install --break-system-packages --no-cache-dir 'beets[fetchart,embedart,musicbrainz]' 'yt-dlp[default]' && \
     mkdir -p /root/.config/beets
 
 # Copy beets configuration
