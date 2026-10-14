@@ -70,3 +70,18 @@ output is also saved to `<output_directory>/download_log.txt` (the Home Assistan
 `/media` mount, not `/config/media`). A metadata failure happens before that file
 is created and is reported directly in the Log tab. YouTube cannot search until
 the Spotify track list has been read successfully.
+
+## Crash recovery (0.6.2)
+
+The downloader uses two concurrent downloads and raises its soft open-file limit
+to 16384, capped by the container's hard limit. The effective limit appears in
+the log; no extra container privileges are required. This reduces descriptor
+exhaustion but cannot guarantee that the upstream downloader never crashes.
+
+After a signal termination or descriptor exhaustion, recovery compares the full
+playlist with completed index entries and exact artist/title/album tags plus
+duration (within two seconds) in downloaded audio. Unconfirmed tracks become
+eligible for YouTube recovery, including tracks never started on Soulseek.
+Partial files are ignored. If a crash destroys the index and an audio file has
+missing or different tags, recovery may download another copy rather than silently
+omit that track. Ordinary login errors still do not trigger this recovery.

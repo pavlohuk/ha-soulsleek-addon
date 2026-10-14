@@ -7,7 +7,9 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
 import tempfile
-from youtube_fallback import download_missing_tracks
+import signal
+from youtube_fallback import download_missing_tracks, missing_tracks
+from download_recovery import configure_file_limit, rebuild_crashed_index
 from spotify_playlist import prepare_spotify_playlist
 
 def download_music(playlist_url, output_dir, log_file, user, password, pref_format, index_file=None):
@@ -22,8 +24,8 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
     
     print(f"Downloading music from {playlist_url} to {output_dir}", flush=True)
     print(f"Download log: {log_file}", flush=True)
-    # Use multiple concurrent downloads for sldl
-    max_concurrent = min(4, multiprocessing.cpu_count())
+    configure_file_limit()
+    max_concurrent = 2
     
     command = [
         "/usr/local/bin/sldl", playlist_url,
@@ -38,6 +40,7 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
         command.extend(["--index-path", index_file])
     
     failed_tracks = []
+    resource_exhausted = False
     
     try:
         print(f"🎵 Starting download from Spotify playlist...", flush=True)
@@ -54,12 +57,14 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
                 f.write(line + '\n')
                 f.flush()
                 
-                # Track failed downloads - check for various failure patterns
-                if line.startswith("Not found: ") or line.startswith("All downloads failed: "):
-                    # Extract track info from failed download line
-                    track_name = line.replace("Not found: ", "").replace("All downloads failed: ", "")
-                    failed_tracks.append(track_name)
-                
+                if "No file descriptors available" in line or "Too many open files" in line:
+                    resource_exhausted = True
+                for prefix in ("Not found: ", "All downloads failed: ", "Out of download retries: "):
+                    if line.startswith(prefix):
+                        track_name = line[len(prefix):]
+                        if track_name not in failed_tracks:
+                            failed_tracks.append(track_name)
+
                 # --no-progress keeps output readable; never hide startup/API errors.
                 if line:
                     print(line, flush=True)
@@ -67,6 +72,20 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
             process.stdout.close()
             process.wait()
         
+        if index_file:
+            if process.returncode < 0 or resource_exhausted:
+                try:
+                    rebuild_crashed_index(playlist_url, index_file, output_dir)
+                except (OSError, ValueError) as error:
+                    print(f"⚠️ Cannot reconcile crashed download: {error}", flush=True)
+            try:
+                failed_tracks = [
+                    f"{track['artist']} - {track['title']} ({track['duration']:g}s)"
+                    for track in missing_tracks(index_file)
+                ]
+            except (OSError, ValueError):
+                pass  # Keep textual diagnostics when no usable index exists.
+
         # Show download summary
         if failed_tracks:
             print(f"\n📋 DOWNLOAD SUMMARY:", flush=True)
@@ -80,6 +99,12 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
             return True, failed_tracks
         else:
             print(f"❌ Download failed with exit code: {process.returncode}", flush=True)
+            if process.returncode < 0:
+                try:
+                    reason = signal.Signals(-process.returncode).name
+                except ValueError:
+                    reason = str(-process.returncode)
+                print(f"Downloader terminated by signal: {reason}", flush=True)
             return False, failed_tracks
             
     except Exception as e:

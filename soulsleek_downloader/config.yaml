@@ -1,5 +1,5 @@
 name: "Soulsleek Downloader"
-version: "0.6.1"
+version: "0.6.2"
 slug: "soulsleek_downloader"
 description: "Downloads Spotify playlist tracks from Soulseek with YouTube fallback, then normalizes and saves them."
 arch:

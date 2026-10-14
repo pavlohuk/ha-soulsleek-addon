@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.2
+
+- Raise the soft open-file limit to 16384 where allowed by the container and limit
+  Soulseek to two concurrent downloads to reduce descriptor exhaustion.
+- Reconcile interrupted downloads against the complete playlist after a crash,
+  recovering unfinished tracks even when the native index is missing or truncated.
+- Use the structured recovery list for failure totals, including exhausted retries,
+  and explain signal termination such as SIGABRT (-6).
+
 ## 0.6.1
 
 - Resolve public Spotify playlists with SpotAPI before sending complete track
