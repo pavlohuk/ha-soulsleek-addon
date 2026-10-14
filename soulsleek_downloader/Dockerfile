@@ -54,7 +54,8 @@ RUN ARCH=$(uname -m) && \
     rm -rf /tmp/slsk-batchdl
 
 # Install beets for metadata and cover art processing
-RUN pip install --break-system-packages --no-cache-dir 'beets[fetchart,embedart,musicbrainz]' 'yt-dlp[default]' && \
+RUN pip install --break-system-packages --no-cache-dir 'beets[fetchart,embedart,musicbrainz]' 'yt-dlp[default]' 'spotapi[redis,pymongo,websocket]==1.2.8' && \
+    python3 -c 'from spotapi import PublicPlaylist' && \
     mkdir -p /root/.config/beets
 
 # Copy beets configuration

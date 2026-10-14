@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
 import tempfile
 from youtube_fallback import download_missing_tracks
+from spotify_playlist import prepare_spotify_playlist
 
 def download_music(playlist_url, output_dir, log_file, user, password, pref_format, index_file=None):
     """
@@ -20,6 +21,7 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
         return False, []
     
     print(f"Downloading music from {playlist_url} to {output_dir}", flush=True)
+    print(f"Download log: {log_file}", flush=True)
     # Use multiple concurrent downloads for sldl
     max_concurrent = min(4, multiprocessing.cpu_count())
     
@@ -47,6 +49,8 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
             
             for line in process.stdout:
                 line = line.rstrip()
+                if password:
+                    line = line.replace(password, "[REDACTED]")
                 f.write(line + '\n')
                 f.flush()
                 
@@ -56,10 +60,8 @@ def download_music(playlist_url, output_dir, log_file, user, password, pref_form
                     track_name = line.replace("Not found: ", "").replace("All downloads failed: ", "")
                     failed_tracks.append(track_name)
                 
-                # Only show essential download progress
-                if any(keyword in line for keyword in [
-                    'Downloading', 'tracks:', 'Succeeded:', 'Failed:', 'Completed:', 'Not found:', 'All downloads failed:'
-                ]):
+                # --no-progress keeps output readable; never hide startup/API errors.
+                if line:
                     print(line, flush=True)
             
             process.stdout.close()
@@ -287,10 +289,21 @@ def main():
         # A fresh structured index prevents retrying failures from another playlist/run.
         with tempfile.TemporaryDirectory(prefix="soulsleek-index-") as index_dir:
             index_file = os.path.join(index_dir, "tracks.csv")
+            try:
+                print("Loading public Spotify playlist...", flush=True)
+                playlist_input = prepare_spotify_playlist(args.playlist_url, index_dir)
+            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+                print(f"❌ Playlist import failed: {error}", flush=True)
+                print("Workflow failed before track search. See the Home Assistant add-on log above.", flush=True)
+                return 1
             download_success, failed_tracks = download_music(
-                args.playlist_url, download_dir, log_file, args.user,
+                playlist_input, download_dir, log_file, args.user,
                 getattr(args, 'pass'), args.pref_format, index_file=index_file,
             )
+            if not download_success and not os.path.isfile(index_file):
+                print("❌ Downloader stopped before producing track results; YouTube fallback cannot run.", flush=True)
+                print(f"See the error above or {log_file}.", flush=True)
+                return 1
             if args.youtube_fallback:
                 download_missing_tracks(index_file, download_dir, log_file)
         
@@ -301,6 +314,7 @@ def main():
         parser.error("You must specify either --playlist-url for downloading or --process-dir for local processing.")
 
     print("Workflow complete.", flush=True)
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
