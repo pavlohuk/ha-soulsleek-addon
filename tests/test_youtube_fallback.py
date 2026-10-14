@@ -167,6 +167,7 @@ class FallbackTests(unittest.TestCase):
             argv = ["main.py", "--playlist-url", "https://open.spotify.com/playlist/test",
                     "--output-dir", str(self.root), "--user", "test", "--pass", "test", "--pref-format", "mp3"] + flags
             with self.subTest(flags=flags), patch.object(sys, "argv", argv), \
+                    patch.object(main, "prepare_spotify_playlist", return_value="playlist.csv"), \
                     patch.object(main, "download_music", return_value=(True, [])), \
                     patch.object(main, "download_missing_tracks") as recover, \
                     patch.object(main, "process_music") as process:
@@ -182,8 +183,13 @@ class FallbackTests(unittest.TestCase):
             Path(directory, "recovered.flac").write_bytes(b"audio")
             return 1, 0
 
+        def download(*args, index_file):
+            Path(index_file).write_text("test index")
+            return False, ["missing"]
+
         with patch.object(sys, "argv", argv), \
-                patch.object(main, "download_music", return_value=(False, ["missing"])), \
+                patch.object(main, "prepare_spotify_playlist", return_value="playlist.csv"), \
+                patch.object(main, "download_music", side_effect=download), \
                 patch.object(main, "download_missing_tracks", side_effect=recover), \
                 patch.object(main, "process_music") as process:
             main.main()

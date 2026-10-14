@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1
+
+- Resolve public Spotify playlists with SpotAPI before sending complete track
+  metadata to Soulseek as CSV. This avoids the old downloader's failing Spotify API lookup.
+- Paginate and validate the playlist before starting downloads; reject incomplete imports.
+- Show downloader errors directly in the Home Assistant log and report startup failure
+  with a nonzero exit status instead of a misleading successful completion.
+- Skip YouTube recovery cleanly when the downloader never produced track results.
+
 ## 0.6.0
 
 - Add optional YouTube recovery for tracks missing or unsuccessfully downloaded

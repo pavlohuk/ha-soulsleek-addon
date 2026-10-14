@@ -1,6 +1,12 @@
 # Soulsleek Downloader Add-on
 
 This Home Assistant add-on downloads music from Soulseek using a Spotify playlist link.
+The Spotify playlist must be public. Version 0.6.1 resolves its metadata using
+SpotAPI and passes the complete track list to Soulseek as CSV, avoiding the old
+slsk-batchdl Spotify API reader. The complete metadata lookup is limited to three
+minutes. Incomplete/changing playlists stop with a visible error instead of
+silently downloading a partial list. Episodes and unavailable non-track entries
+are counted and skipped.
 It then processes the downloaded music to:
 - Update metadata and add cover art using Beets.
 - Normalize volume.
@@ -58,3 +64,9 @@ bash -n soulsleek_downloader/run.sh
 ```
 
 Tests use synthetic audio and mocked network downloads; they need no accounts.
+
+If startup fails, read the add-on's Home Assistant **Log** tab. Soulseek's full
+output is also saved to `<output_directory>/download_log.txt` (the Home Assistant
+`/media` mount, not `/config/media`). A metadata failure happens before that file
+is created and is reported directly in the Log tab. YouTube cannot search until
+the Spotify track list has been read successfully.
