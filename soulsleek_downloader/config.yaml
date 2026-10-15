@@ -3,6 +3,8 @@ version: "0.7.0"
 slug: "soulsleek_downloader"
 description: "Syncs a Spotify playlist from Soulseek with YouTube fallback, then normalizes, tags and saves the tracks."
 url: "https://github.com/pavlohuk/ha-soulsleek-addon"
+# Prebuilt by .github/workflows/publish.yaml for every version pushed to main.
+image: "ghcr.io/pavlohuk/{arch}-addon-soulsleek_downloader"
 arch:
   - aarch64
   - amd64

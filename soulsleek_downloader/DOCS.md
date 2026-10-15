@@ -111,7 +111,8 @@ YouTube recovery. Partial files are ignored.
 The image contains FFmpeg, Node.js, yt-dlp (with EJS), Mutagen and SpotAPI.
 `slsk-batchdl` is pinned to 2.6.0 to keep its CLI and CSV index format and is compiled
 against .NET 8 in a separate build stage; only the self-contained binary is copied into
-the image.
+the image. Home Assistant installs the images that `publish.yaml` pushes to GHCR for
+every version merged into `main`.
 
 Run the tests with Python 3.10+, Mutagen and FFmpeg (with libopus) installed:
 

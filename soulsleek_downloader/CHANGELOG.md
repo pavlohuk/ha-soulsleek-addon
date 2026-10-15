@@ -19,6 +19,7 @@
 - Exit with an error when the downloader or a conversion fails.
 - Supported architectures: aarch64 and amd64 (32-bit builds never worked).
 - Smaller image: slsk-batchdl is compiled in a separate build stage.
+- Install prebuilt images from GHCR instead of building on the device.
 
 ## 0.6.2
 
