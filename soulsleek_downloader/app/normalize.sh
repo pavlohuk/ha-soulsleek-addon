@@ -1,24 +1,30 @@
 #!/bin/bash
 
 # A script to perform two-pass loudness normalization using ffmpeg.
+# Usage: normalize.sh <input> <output.mp3> [target LUFS]
 
 # --- Configuration ---
 INPUT_FILE="$1"
 OUTPUT_FILE="$2"
-TARGET_LUFS="-14"
+TARGET_LUFS="${3:--14}"
 TRUE_PEAK="-1.5"
 TARGET_LRA="11"
 
 # --- Script Logic ---
 
 # Exit immediately if a command exits with a non-zero status.
-set -e
+set -eo pipefail
 
 echo "Running first pass loudness analysis..."
 
-# Run the first pass and capture the detailed log output.
-# We redirect stderr to a variable.
-LOUDNORM_LOG=$(ffmpeg -hide_banner -i "$INPUT_FILE" -af loudnorm=I=$TARGET_LUFS:TP=$TRUE_PEAK:LRA=$TARGET_LRA:print_format=summary -f null - 2>&1)
+# Run the first pass and capture the detailed log output (ffmpeg writes it to stderr).
+if ! LOUDNORM_LOG=$(ffmpeg -hide_banner -nostdin -i "$INPUT_FILE" -map 0:a:0 -af loudnorm=I=$TARGET_LUFS:TP=$TRUE_PEAK:LRA=$TARGET_LRA:print_format=summary -f null - 2>&1); then
+    echo "Error: loudness analysis failed."
+    echo "--- FFMPEG LOG ---"
+    echo "$LOUDNORM_LOG" | tail -n 20
+    echo "--------------------"
+    exit 1
+fi
 
 echo "First pass complete. Parsing statistics..."
 
@@ -53,7 +59,16 @@ echo "  - Target Offset:   $TARGET_OFFSET"
 
 echo "Running second pass to apply normalization..."
 
-# Run the second pass to apply the normalization with the parsed values.
-ffmpeg -i "$INPUT_FILE" -af loudnorm=I=$TARGET_LUFS:TP=$TRUE_PEAK:LRA=$TARGET_LRA:measured_I=$MEASURED_I:measured_LRA=$MEASURED_LRA:measured_TP=$MEASURED_TP:measured_thresh=$MEASURED_THRESH:offset=$TARGET_OFFSET -c:a libmp3lame -ar 44100 -b:a 320k "$OUTPUT_FILE" -y
+# Second pass with the measured values. Keep only the first audio stream and an
+# embedded cover (if any); ID3v2.3 is the most widely supported tag version.
+second_pass() {
+    ffmpeg -hide_banner -nostdin -v error -i "$INPUT_FILE" -map 0:a:0 "$@" \
+        -af loudnorm=I=$TARGET_LUFS:TP=$TRUE_PEAK:LRA=$TARGET_LRA:measured_I=$MEASURED_I:measured_LRA=$MEASURED_LRA:measured_TP=$MEASURED_TP:measured_thresh=$MEASURED_THRESH:offset=$TARGET_OFFSET \
+        -c:a libmp3lame -ar 44100 -b:a 320k -id3v2_version 3 -f mp3 "$OUTPUT_FILE" -y
+}
+if ! second_pass -map "0:v?" -c:v copy; then
+    echo "Retrying without the embedded cover..."
+    second_pass -vn
+fi
 
 echo "Normalization complete for: $OUTPUT_FILE"

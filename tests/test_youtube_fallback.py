@@ -158,9 +158,10 @@ class FallbackTests(unittest.TestCase):
         source.write_bytes(b"keep for retry")
         with patch.object(main, "normalize_single_file", return_value={
             "status": "failed", "file": str(source), "error": "conversion failed",
-        }), patch.object(main, "update_metadata_with_beets"):
-            main.process_music(str(self.output))
+        }):
+            summary = main.process_music(str(self.output))
         self.assertEqual(source.read_bytes(), b"keep for retry")
+        self.assertEqual(len(summary["failed"]), 1)
 
     def test_cli_switch_disables_fallback_and_default_enables_it(self):
         for flags, expected in (([], True), (["--no-youtube-fallback"], False)):
@@ -179,11 +180,11 @@ class FallbackTests(unittest.TestCase):
         argv = ["main.py", "--playlist-url", "https://open.spotify.com/playlist/test",
                 "--output-dir", str(self.root), "--user", "test", "--pass", "test", "--pref-format", "mp3"]
 
-        def recover(index, directory, log):
+        def recover(index, directory, log, recovered_files):
             Path(directory, "recovered.flac").write_bytes(b"audio")
             return 1, 0
 
-        def download(*args, index_file):
+        def download(*args, index_file, concurrent_downloads):
             Path(index_file).write_text("test index")
             return False, ["missing"]
 
@@ -192,8 +193,8 @@ class FallbackTests(unittest.TestCase):
                 patch.object(main, "download_music", side_effect=download), \
                 patch.object(main, "download_missing_tracks", side_effect=recover), \
                 patch.object(main, "process_music") as process:
-            main.main()
-            process.assert_called_once_with(str(self.output))
+            self.assertEqual(main.main(), 1)  # The Soulseek failure is still reported.
+            self.assertEqual(process.call_args.args[0], str(self.output))
 
 
 if __name__ == "__main__":

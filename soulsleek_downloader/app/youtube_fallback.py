@@ -42,7 +42,8 @@ def missing_tracks(index_path):
                 duration = float(row["length"])
             except (TypeError, ValueError):
                 duration = -1
-            tracks.append({"artist": artist, "title": title, "album": row.get("album") or "", "duration": duration})
+            tracks.append({"artist": artist, "title": title, "album": row.get("album") or "",
+                           "length": row["length"], "duration": duration})
         return tracks
 
 
@@ -64,8 +65,11 @@ def matching_candidates(entries, duration):
         yield video_id
 
 
-def download_missing_tracks(index_path, output_dir, log_file):
-    """Return (recovered, unresolved) counts. Errors do not discard Soulseek files."""
+def download_missing_tracks(index_path, output_dir, log_file, recovered_files=None):
+    """Return (recovered, unresolved) counts. Errors do not discard Soulseek files.
+
+    Each recovered (track, path) pair is appended to ``recovered_files`` when given.
+    """
     try:
         tracks = missing_tracks(index_path)
     except (OSError, ValueError, csv.Error) as error:
@@ -139,6 +143,8 @@ def download_missing_tracks(index_path, output_dir, log_file):
                         identity = hashlib.sha256(json.dumps(track, sort_keys=True).encode("utf-8")).hexdigest()[:10]
                         destination = Path(output_dir, f"{filename} [yt-{identity}].flac")
                         os.replace(audio, destination)
+                        if recovered_files is not None:
+                            recovered_files.append((track, str(destination)))
                         recovered += 1
                         downloaded = True
                         print(f"   ✅ YouTube recovered: {label}", flush=True)

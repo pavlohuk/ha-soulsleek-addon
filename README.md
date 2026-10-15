@@ -9,12 +9,12 @@ Home Assistant add-ons repository for music management.
 Downloads music from Soulseek using Spotify playlist links and processes it for optimal quality.
 
 **Features:**
-- Download from Soulseek using Spotify playlist URLs
-- Automatically recover missing tracks from YouTube (optional)
-- Two-pass loudness normalization (-14 LUFS)
-- Convert to 320kbps MP3, 44.1kHz (Sonos compatible)
-- Local directory processing support
-- Detailed logging and error handling
+- Incremental sync of a public Spotify playlist: only new tracks are downloaded
+- Download from Soulseek, recover missing tracks from YouTube (optional)
+- Two-pass loudness normalization (default -14 LUFS)
+- 320kbps MP3, 44.1kHz (Sonos compatible)
+- Tags and cover art from Spotify
+- Home Assistant notification and event when finished
 
 ## Installation
 
@@ -31,17 +31,21 @@ Downloads music from Soulseek using Spotify playlist links and processes it for 
 
 ## Configuration
 
-- **spotify_playlist_url**: URL of your Spotify playlist
-- **output_directory**: Where to save processed music (default: `/media/`)
-- **soulseek_user**: Your Soulseek username
-- **soulseek_pass**: Your Soulseek password
-- **preferred_format**: Preferred download format (`mp3` or `flac`)
-- **youtube_fallback**: Search YouTube after a track is not found or all Soulseek downloads fail (default: `true`)
+- **spotify_playlist_url**: URL of your public Spotify playlist
+- **output_directory**: Where to save processed music, inside `/media` or `/share` (default: `/media/`)
+- **soulseek_user** / **soulseek_pass**: Your Soulseek account
+- **preferred_format**: Preferred Soulseek format (`mp3` or `flac`); output is always MP3
+- **youtube_fallback**: Search YouTube for tracks missing on Soulseek (default: `true`)
+- **concurrent_downloads**: Parallel Soulseek transfers, 1–4 (default: `2`)
+- **target_loudness**: Loudness target in LUFS (default: `-14`)
+- **notify**: Notification and event when finished (default: `true`)
+- **update_yt_dlp**: Update yt-dlp on start (default: `true`)
 
-See the [add-on documentation](soulsleek_downloader/README.md) for fallback behavior and troubleshooting.
+See the [add-on documentation](soulsleek_downloader/DOCS.md) for incremental sync,
+scheduling and troubleshooting.
 
 ## Requirements
 
-- Home Assistant OS or Supervised
+- Home Assistant OS or Supervised on aarch64 or amd64
 - Soulseek account
 - Access to `/media/` directory
