@@ -1,7 +1,6 @@
 # Builds the add-on image natively for each architecture and pushes it to GHCR.
-# Home Assistant pulls these images only once config.yaml sets
-#   image: "ghcr.io/pavlohuk/{arch}-addon-soulsleek_downloader"
-# Without it, every installation still builds the Dockerfile locally.
+# config.yaml's `image:` points Home Assistant at these images, so every version
+# merged into main must be published here before users can install it.
 name: Publish images
 
 on:
