@@ -1,0 +1,25 @@
+configuration:
+  spotify_playlist_url:
+    name: Spotify playlist URL
+    description: Public playlist link (https://open.spotify.com/playlist/...).
+  output_directory:
+    name: Output directory
+    description: Inside /media or /share.
+  soulseek_user:
+    name: Soulseek username
+  soulseek_pass:
+    name: Soulseek password
+  preferred_format:
+    name: Preferred Soulseek format
+    description: Files are always saved as 320 kbps MP3.
+  youtube_fallback:
+    name: YouTube fallback
+    description: Search YouTube for tracks not found on Soulseek.
+  concurrent_downloads:
+    name: Concurrent downloads
+  target_loudness:
+    name: Target loudness (LUFS)
+  notify:
+    name: Notify when finished
+  update_yt_dlp:
+    name: Update yt-dlp on start

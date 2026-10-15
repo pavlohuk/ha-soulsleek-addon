@@ -1,19 +1,19 @@
 name: "Soulsleek Downloader"
-version: "0.6.2"
+version: "0.7.0"
 slug: "soulsleek_downloader"
-description: "Downloads Spotify playlist tracks from Soulseek with YouTube fallback, then normalizes and saves them."
+description: "Syncs a Spotify playlist from Soulseek with YouTube fallback, then normalizes, tags and saves the tracks."
+url: "https://github.com/pavlohuk/ha-soulsleek-addon"
 arch:
   - aarch64
   - amd64
-  - armhf
-  - armv7
-  - i386
+# A batch job: run it manually or from an automation (hassio.addon_start).
+startup: once
+boot: manual
 init: false
+homeassistant_api: true
 map:
-  - ssl
   - share:rw
   - media:rw
-full_access: true
 options:
   spotify_playlist_url: ""
   output_directory: "/media/"
@@ -21,10 +21,18 @@ options:
   soulseek_pass: ""
   preferred_format: "mp3"
   youtube_fallback: true
+  concurrent_downloads: 2
+  target_loudness: -14
+  notify: true
+  update_yt_dlp: true
 schema:
   spotify_playlist_url: "str"
   output_directory: "str"
   soulseek_user: "str"
   soulseek_pass: "password"
-  preferred_format: "str"
+  preferred_format: "list(mp3|flac)"
   youtube_fallback: "bool?"
+  concurrent_downloads: "int(1,4)?"
+  target_loudness: "int(-24,-8)?"
+  notify: "bool?"
+  update_yt_dlp: "bool?"

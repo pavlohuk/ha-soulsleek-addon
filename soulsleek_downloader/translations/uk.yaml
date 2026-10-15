@@ -1,0 +1,25 @@
+configuration:
+  spotify_playlist_url:
+    name: Посилання на плейлист Spotify
+    description: Публічний плейлист (https://open.spotify.com/playlist/...).
+  output_directory:
+    name: Папка для музики
+    description: Усередині /media або /share.
+  soulseek_user:
+    name: Логін Soulseek
+  soulseek_pass:
+    name: Пароль Soulseek
+  preferred_format:
+    name: Бажаний формат у Soulseek
+    description: Файли завжди зберігаються як MP3 320 kbps.
+  youtube_fallback:
+    name: Резерв через YouTube
+    description: Шукати на YouTube треки, яких немає в Soulseek.
+  concurrent_downloads:
+    name: Одночасні завантаження
+  target_loudness:
+    name: Цільова гучність (LUFS)
+  notify:
+    name: Сповіщення після завершення
+  update_yt_dlp:
+    name: Оновлювати yt-dlp під час старту

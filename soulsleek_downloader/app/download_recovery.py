@@ -7,10 +7,12 @@ import resource
 
 from mutagen import File, MutagenError
 
+from library import AUDIO_EXTENSIONS, track_key as identity
+
 HEADER = ['filepath', 'artist', 'album', 'title', 'length', 'tracktype', 'state', 'failurereason']
 
 
-def configure_file_limit():
+def configure_file_limit(concurrent_downloads=2):
     """Raise only the soft limit; never require extra container privileges."""
     soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
     target = 16384 if hard == resource.RLIM_INFINITY else min(16384, hard)
@@ -20,11 +22,7 @@ def configure_file_limit():
             soft = target
         except (OSError, ValueError) as error:
             print(f'⚠️ Cannot raise open-file limit: {error}', flush=True)
-    print(f'Soulseek open-file limit: {soft} (hard: {hard}); concurrent downloads: 2', flush=True)
-
-
-def identity(row):
-    return tuple((row.get(key) or '').strip() for key in ('artist', 'title', 'album', 'length'))
+    print(f'Soulseek open-file limit: {soft} (hard: {hard}); concurrent downloads: {concurrent_downloads}', flush=True)
 
 
 def rebuild_crashed_index(playlist, index, output_dir):
@@ -38,24 +36,24 @@ def rebuild_crashed_index(playlist, index, output_dir):
         if not {'artist', 'title', 'album', 'length'}.issubset(reader.fieldnames or []):
             raise ValueError('Invalid playlist CSV for crash recovery')
         source = list(reader)
-    completed = set()
+    completed = {}
     try:
         with open(index, encoding='utf-8-sig', newline='') as stream:
             for row in csv.DictReader(stream):
                 if row.get('tracktype') == '0' and row.get('state') in {'1', '3'}:
-                    completed.add(identity(row))
+                    completed[identity(row)] = row.get('filepath') or ''
     except (OSError, csv.Error, UnicodeError):
         pass
 
     audio_identities = []
     for path in Path(output_dir).rglob('*'):
-        if path.suffix.lower() not in {'.mp3', '.flac', '.ogg', '.wav', '.aiff', '.m4a'}:
+        if path.suffix.lower() not in AUDIO_EXTENSIONS:
             continue
         try:
             audio = File(path, easy=True)
             if audio is not None and audio.tags and audio.info.length > 0:
                 tags = tuple(str((audio.get(key) or [''])[0]).strip() for key in ('artist', 'title', 'album'))
-                audio_identities.append((tags, audio.info.length))
+                audio_identities.append((tags, audio.info.length, str(path)))
         except (OSError, ValueError, MutagenError):
             continue
     rows, seen = [], set()
@@ -65,11 +63,12 @@ def rebuild_crashed_index(playlist, index, output_dir):
             continue
         seen.add(key)
         duration = float(row['length'])
-        present = key in completed or any(
-            tags == key[:3] and abs(length - duration) <= 2
-            for tags, length in audio_identities
-        )
-        rows.append(dict(row, filepath='', tracktype='0', state='1' if present else '2',
+        present, filepath = key in completed, completed.get(key, '')
+        for tags, length, path in audio_identities:
+            if not filepath and tags == key[:3] and abs(length - duration) <= 2:
+                present, filepath = True, path
+                break
+        rows.append(dict(row, filepath=filepath, tracktype='0', state='1' if present else '2',
                          failurereason='0' if present else '2'))
     temporary = str(index) + '.recovered'
     with open(temporary, 'w', encoding='utf-8', newline='') as stream:

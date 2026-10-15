@@ -1,6 +1,7 @@
 """Resolve public Spotify metadata to the CSV supported by slsk-batchdl."""
 
 import csv
+import json
 import os
 from pathlib import Path
 import re
@@ -15,6 +16,31 @@ def playlist_id(url):
     if parsed.scheme != "https" or parsed.hostname != "open.spotify.com" or not match:
         raise ValueError("Expected an https://open.spotify.com/playlist/... URL")
     return match.group(1)
+
+
+def names(container):
+    return [name for name in (
+        (item.get("profile") or {}).get("name") for item in (container or {}).get("items") or []
+    ) if name]
+
+
+def track_metadata(track, artist, title, milliseconds):
+    album = track.get("albumOfTrack") or {}
+    covers = [source for source in (album.get("coverArt") or {}).get("sources") or []
+              if isinstance(source, dict) and source.get("url")]
+    cover = max(covers, key=lambda source: source.get("width") or 0, default={})
+    released = (album.get("date") or {}).get("isoString") or ""
+    return {
+        "artist": artist, "title": title, "album": album.get("name", ""),
+        "length": int(milliseconds / 1000),
+        "artists": names(track.get("artists")),
+        "album_artist": ", ".join(names(album.get("artists"))),
+        "track_number": track.get("trackNumber") or None,
+        "disc_number": track.get("discNumber") or None,
+        "year": released[:4] if re.fullmatch(r"\d{4}", released[:4]) else None,
+        "cover_url": cover.get("url"),
+        "uri": track.get("uri") or None,
+    }
 
 
 def export_playlist(url, destination, client_factory=None):
@@ -55,21 +81,26 @@ def export_playlist(url, destination, client_factory=None):
             milliseconds = (track.get("trackDuration") or {}).get("totalMilliseconds")
             if not title or not artist or not isinstance(milliseconds, (int, float)) or milliseconds <= 0:
                 raise ValueError("Spotify returned a song without title, artist, or duration; refusing a partial import")
-            rows.append({
-                "artist": artist, "title": title,
-                "album": (track.get("albumOfTrack") or {}).get("name", ""),
-                "length": int(milliseconds / 1000),
-            })
+            rows.append(track_metadata(track, artist, title, milliseconds))
         offset += len(items)
         if offset == expected_total:
             break
     if not rows:
         raise ValueError("Spotify playlist contains no searchable music tracks")
     target = Path(destination)
+    # Full metadata for tagging; written first so a CSV always has its metadata.
+    metadata = target.with_suffix(".json")
+    temporary = target.with_suffix(".json.tmp")
+    try:
+        temporary.write_text(json.dumps({"name": name, "id": identifier, "tracks": rows}, ensure_ascii=False),
+                             encoding="utf-8")
+        os.replace(temporary, metadata)
+    finally:
+        temporary.unlink(missing_ok=True)
     temporary = target.with_suffix(".csv.tmp")
     try:
         with temporary.open("w", encoding="utf-8", newline="") as stream:
-            writer = csv.DictWriter(stream, fieldnames=["artist", "title", "album", "length"])
+            writer = csv.DictWriter(stream, fieldnames=["artist", "title", "album", "length"], extrasaction="ignore")
             writer.writeheader()
             writer.writerows(rows)
         os.replace(temporary, target)
