@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+- `youtube_fallback`, `concurrent_downloads`, `target_loudness`, `notify` and
+  `update_yt_dlp` are no longer optional, so the configuration form always shows them.
+  Installations without saved values get the defaults.
+
 ## 0.7.0
 
 - Incremental sync: only tracks that are not in the library yet are downloaded. State is
