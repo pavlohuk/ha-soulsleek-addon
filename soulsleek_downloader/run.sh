@@ -16,23 +16,23 @@ case "${OUTPUT_DIRECTORY%/}/" in
     *) bashio::exit.nok "output_directory must be inside /media or /share (got: ${OUTPUT_DIRECTORY})" ;;
 esac
 
-# Existing installations may not have the newer options saved yet.
-EXTRA_ARGS=(--youtube-fallback --notify)
-if bashio::config.has_value 'youtube_fallback' && bashio::config.false 'youtube_fallback'; then
-    EXTRA_ARGS[0]=--no-youtube-fallback
+EXTRA_ARGS=(
+    --concurrent-downloads "$(bashio::config 'concurrent_downloads')"
+    --target-lufs "$(bashio::config 'target_loudness')"
+)
+if bashio::config.true 'youtube_fallback'; then
+    EXTRA_ARGS+=(--youtube-fallback)
+else
+    EXTRA_ARGS+=(--no-youtube-fallback)
 fi
-if bashio::config.has_value 'notify' && bashio::config.false 'notify'; then
-    EXTRA_ARGS[1]=--no-notify
-fi
-if bashio::config.has_value 'concurrent_downloads'; then
-    EXTRA_ARGS+=(--concurrent-downloads "$(bashio::config 'concurrent_downloads')")
-fi
-if bashio::config.has_value 'target_loudness'; then
-    EXTRA_ARGS+=(--target-lufs "$(bashio::config 'target_loudness')")
+if bashio::config.true 'notify'; then
+    EXTRA_ARGS+=(--notify)
+else
+    EXTRA_ARGS+=(--no-notify)
 fi
 
 # YouTube changes often; a stale yt-dlp silently breaks the fallback.
-if ! bashio::config.false 'update_yt_dlp' && ! bashio::config.false 'youtube_fallback'; then
+if bashio::config.true 'update_yt_dlp' && bashio::config.true 'youtube_fallback'; then
     bashio::log.info "Updating yt-dlp..."
     if ! timeout 180 pip install --break-system-packages --no-cache-dir --quiet --upgrade 'yt-dlp[default]'; then
         bashio::log.warning "yt-dlp update failed; using $(python3 -m yt_dlp --version 2>/dev/null || echo 'the bundled version')"

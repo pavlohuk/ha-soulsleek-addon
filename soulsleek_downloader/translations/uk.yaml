@@ -21,5 +21,6 @@ configuration:
     name: Цільова гучність (LUFS)
   notify:
     name: Сповіщення після завершення
+    description: Сповіщення та подія soulsleek_downloader_finished.
   update_yt_dlp:
     name: Оновлювати yt-dlp під час старту

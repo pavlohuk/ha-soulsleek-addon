@@ -21,5 +21,6 @@ configuration:
     name: Target loudness (LUFS)
   notify:
     name: Notify when finished
+    description: Notification and soulsleek_downloader_finished event.
   update_yt_dlp:
     name: Update yt-dlp on start
